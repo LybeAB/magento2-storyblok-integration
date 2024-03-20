@@ -1,6 +1,7 @@
 <?php
 namespace MediaLounge\Storyblok\Model\ItemProvider;
 
+use Storyblok\Client;
 use Storyblok\ClientFactory;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
@@ -11,27 +12,17 @@ use Magento\Sitemap\Model\ItemProvider\ItemProviderInterface;
 
 class Story implements ItemProviderInterface
 {
-    const STORIES_PER_PAGE = 100;
+    public const STORIES_PER_PAGE = 100;
 
-    /**
-     * @var SitemapItemInterfaceFactory
-     */
-    private $itemFactory;
+    private SitemapItemInterfaceFactory $itemFactory;
 
-    /**
-     * @var ConfigReaderInterface
-     */
-    private $configReader;
+    private ConfigReaderInterface $configReader;
 
-    /**
-     * @var \Storyblok\Client
-     */
-    private $storyblokClient;
+    private Client $storyblokClient;
 
-    /**
-     * @var StoreManagerInterface
-     */
-    private $storeManager;
+    private StoreManagerInterface $storeManager;
+
+    private ScopeConfigInterface $scopeConfig;
 
     public function __construct(
         ConfigReaderInterface $configReader,
@@ -53,7 +44,7 @@ class Story implements ItemProviderInterface
         ]);
     }
 
-    public function getItems($storeId)
+    public function getItems($storeId): array
     {
         $response = $this->getStories();
         $stories = $response->getBody()['stories'];
@@ -72,7 +63,7 @@ class Story implements ItemProviderInterface
             $stories = array_merge($stories, $paginatedStories);
         }
 
-        $items = array_map(function ($item) use ($storeId) {
+        return array_map(function ($item) use ($storeId) {
             return $this->itemFactory->create([
                 'url' => $item['full_slug'],
                 'updatedAt' => $item['published_at'],
@@ -80,18 +71,14 @@ class Story implements ItemProviderInterface
                 'changeFrequency' => $this->configReader->getChangeFrequency($storeId)
             ]);
         }, $stories);
-
-        return $items;
     }
 
-    private function getStories(int $page = 1): \Storyblok\Client
+    private function getStories(int $page = 1): Client
     {
-        $response = $this->storyblokClient->getStories([
+        return $this->storyblokClient->getStories([
             'page' => $page,
             'per_page' => self::STORIES_PER_PAGE,
             'filter_query[component][like]' => 'page'
         ]);
-
-        return $response;
     }
 }
