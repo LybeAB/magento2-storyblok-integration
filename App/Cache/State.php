@@ -5,30 +5,29 @@ use Magento\Framework\App\DeploymentConfig;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\App\DeploymentConfig\Writer;
+use Psr\Log\LoggerInterface;
 
 class State extends \Magento\Framework\App\Cache\State
 {
-    /**
-     * @var Json
-     */
-    private $json;
+    private Json $json;
 
-    /**
-     * @var RequestInterface
-     */
-    private $request;
+    private RequestInterface $request;
+
+    private LoggerInterface $logger;
 
     public function __construct(
         Json $json,
         RequestInterface $request,
         DeploymentConfig $config,
         Writer $writer,
+        LoggerInterface $logger,
         $banAll = false
     ) {
         parent::__construct($config, $writer, $banAll);
 
         $this->json = $json;
         $this->request = $request;
+        $this->logger = $logger;
     }
 
     public function isEnabled($cacheType): bool
@@ -36,7 +35,11 @@ class State extends \Magento\Framework\App\Cache\State
         $postContent = [];
 
         if ($this->isJsonPostRequest($this->request)) {
-            $postContent = $this->json->unserialize($this->request->getContent());
+            try {
+                $postContent = $this->json->unserialize($this->request->getContent());
+            } catch (\InvalidArgumentException $exception) {
+                $this->logger->error($exception->getMessage(), [$this->request->getContent()]);
+            }
         }
 
         if (
